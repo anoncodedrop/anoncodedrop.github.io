@@ -1,0 +1,19 @@
+sel unreachableFunctionId: unit -> [int];
+sel callActuallyUnreachable: unit -> [bool];
+sel callNotActuallyUnreachable: unit -> [bool];
+
+test testUnreachableCallUNSAT expect UNSAT for
+  (!fid: int)  in unreachableFunctionId(),
+  (!unr: bool) in callActuallyUnreachable()
+
+  [?st: tuple<Value; ss{!fid,0}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, 0}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+test testUnreachableCallSAT expect SAT for
+  (!fid: int)  in unreachableFunctionId(),
+  (!rea: bool) in callNotActuallyUnreachable()
+
+  [?st: tuple<Value; ss{!fid,0}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, 0}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;

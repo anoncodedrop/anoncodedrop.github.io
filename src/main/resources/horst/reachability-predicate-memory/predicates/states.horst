@@ -1,0 +1,44 @@
+pred Init{
+    !fid: int
+}:  tuple<Value; as{!fid}()> *
+    tuple<Value; gs()> *
+    Memory
+    ;
+
+pred MState{
+    !fid: int,                      // currently executing function
+    !pc: int                        // currently executing op code position
+}:  tuple<Value; ss{!fid,!pc}()> * // the actual stack
+    tuple<Value; gs()> *           // store for the global variables
+    tuple<Value; ls{!fid}()> *     // store for the local variables
+    Memory *                        // the memory of the module
+    tuple<Value; as{!fid}()> *     // the original arguments for the function
+    tuple<Value; gs()> *           // the original global variables
+    Memory                          // the orignal memory
+    ;
+
+pred Return{
+    !fid: int               // function that return
+}:  tuple<Value; rs{!fid}()> *     // store for the returned values
+    tuple<Value; gs()> *    // store for the global variables
+    Memory *                        // (possibly modified) memory of the module
+    tuple<Value; as{!fid}()> *  // the original arguments for the function
+    tuple<Value; gs()> *     // the original global variables
+    Memory
+    ;
+
+// the argument is a dummy needed by the horst syntax
+pred Trap{
+    !fid: int                   // function that traps
+}:
+    tuple<Value; as{!fid}()> *  // the original arguments for the function
+    tuple<Value; gs()> *     // the original global variables
+    Memory;
+
+pred Table{}:
+    Value *        // idxInTable
+    MaybeValue *   // fid
+    Value          // size
+    ;
+
+pred FunctionsAdded{}: bool;

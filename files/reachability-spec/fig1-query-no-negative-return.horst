@@ -1,0 +1,7 @@
+test testDontReturnNegative expect UNSAT for
+  (!fid: int)     in interval(0,1)
+
+  [?rt: tuple<Value; rs{!fid}()>, ?rgt: tuple<Value; gs()>, ?rmem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+  Return{!fid}(?rt, ?rgt, ?rmem, ?at0, ?gt0, ?mem0),
+  ilts{32}(?rt[0], mkConst{0}())
+  ;

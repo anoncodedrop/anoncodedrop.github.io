@@ -1,0 +1,7 @@
+test testGeneralReachability expect SAT for
+  (!fid: int) in startFunctionId(),
+  (!pc: int) in pcsForFunctionId(!fid)
+
+  [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;

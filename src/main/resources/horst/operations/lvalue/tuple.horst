@@ -1,0 +1,30 @@
+op set{!size: int, !idx: int}(x: LValue, xs: tuple<LValue; !size>): tuple<LValue; !size> :=
+  xs[:!idx] ++ [x,] ++ xs[min(!idx+1,!size):!size]
+  ;
+
+op drop{!size: int, !from: int, !n: int}(xs: tuple<LValue; !size>): tuple<LValue; !size - !n> :=
+  xs[:!from] ++ xs[!from + !n:]
+  ;
+
+op reverse{!sz: int}(x: tuple<LValue; !sz>): tuple<LValue; !sz> :=
+  for (!i : int) in interval(0,!sz): a: tuple<LValue; !sz> -> set{!sz, !i}(x[!sz - 1 -!i], a), x
+  ;
+
+op labelsOf{!sz: int}(x: tuple<LValue; !sz>): tuple<FlowLabel; !sz> :=
+  for (!i : int) in interval(0,!sz):
+    a: tuple<FlowLabel; !sz> -> a[:!i] ++ [labelOf(x[!i]),] ++ a[min(!i+1,!sz):!sz], [@Legal; !sz]
+  ;
+
+op valuesOf{!sz: int}(x: tuple<LValue; !sz>): tuple<Value; !sz> :=
+  for (!i : int) in interval(0,!sz):
+    a: tuple<Value; !sz> -> a[:!i] ++ [valueOf(x[!i]),] ++ a[min(!i+1,!sz):!sz], [mkConst{0}(); !sz]
+  ;
+
+op lowEq{!sz: int}(x: tuple<LValue; !sz>, y: tuple<LValue; !sz>) : bool :=
+  for (!i: int) in interval(0, !sz):
+    && (labelOf(x[!i]) = @Legal) ? (x[!i] = y[!i]) : (labelOf(x[!i]) = labelOf(y[!i]))
+  ;
+
+op joinTuples{!sz: int}(x: tuple<LValue; !sz>, y: tuple<LValue; !sz>, res: tuple<LValue; !sz>): bool :=
+  for (!i : int) in interval(0,!sz): && join(x[!i], y[!i], res[!i])
+  ;

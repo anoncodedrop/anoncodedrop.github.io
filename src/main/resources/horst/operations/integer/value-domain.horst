@@ -1,0 +1,10 @@
+external op freeBaseValue(): int;
+
+op base(v: Value): int := match v with
+  | @Val(x) => x
+  | _       => freeBaseValue()
+  ;
+
+op cinj{!i: int}(): int := !i;
+op inj(i: int): int := i;
+op proj(i: int): int := i;

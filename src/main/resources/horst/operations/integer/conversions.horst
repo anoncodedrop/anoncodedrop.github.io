@@ -1,0 +1,22 @@
+// The conversions from https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#conversions
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-wrap
+op cwrap{!m: int, !n: int}(i: int): int := i mod pow{!n}(2);
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#aux-signed
+op csigned{!bw: int} (i: int): int := (i < pow{!bw - 1}(2)) ? (i) : (i - pow{!bw}(2));
+
+op cunsigned{!bw: int} (i: int): int := (i < 0) ? (i + pow{!bw}(2)) : (i);
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-extend-u
+op cextendu{!m: int, !n: int}(v: int): int := v;
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-extend-s
+op cextendsaux{!m: int, !n: int}(j: int): int :=
+    (j < 0) ? (j mod pow{!m}(2) +
+                for (!it: int) in interval(!m, !n):
+                  + pow{!it}(2)
+              )
+            : (j mod pow{!m}(2))
+    ;
+op cextends{!m: int, !n: int}(j: int): int := cextendsaux{!m,!n}(csigned{!m}(j mod pow{!m}(2)));

@@ -1,0 +1,7 @@
+{
+  "queries": {
+    "call-unreachable": "UNSAT",
+    "no-i32.add-overflow": "",
+    "custom-1": "fig4-query-no-sensitive-overwrite.horst"
+  }
+}

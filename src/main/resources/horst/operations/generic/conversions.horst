@@ -1,0 +1,51 @@
+// The conversions from https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#conversions
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#aux-signed
+op signed{!bw: int} (v: Value): Value := match v with
+  | @Val(x) => @Val(csigned{!bw}(x))
+  | _       => freeValOrTop()
+  ;
+
+op unsigned{!bw: int} (v: Value): Value := match v with
+  | @Val(x) => @Val(cunsigned{!bw}(x))
+  | _       => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iextendn-s
+op extendu{!m: int, !bw: int}(i: Value): Value := match i with
+    | @Val(x) => @Val(cextendu{!m,!bw}(x))
+    | _       => freeValOrTop()
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iextendn-s
+op extends{!m: int, !bw: int}(i: Value): Value := match i with
+    | @Val(x) => @Val(cextends{!m,!bw}(x))
+    | _       => freeValOrTop()
+    ;
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-wrap
+op wrap{!m: int, !bw: int}(i: Value): Value := match i with
+    | @Val(x) => @Val(cwrap{!m,!bw}(x))
+    | _       => freeValOrTop()
+    ;
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-trunc-u 
+op truncu{!m: int, !n: int}(v: Value): Value := freeValOrTop();
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-trunc-s
+op truncs{!m: int, !n: int}(v: Value): Value := freeValOrTop();
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-promote
+op promote{!m: int, !n: int}(v: Value): Value := freeValOrTop();
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-demote
+op demote{!m: int, !n: int}(v: Value): Value := freeValOrTop();
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-convert-u
+op convertu{!m: int, !n: int}(v: Value): Value := freeValOrTop();
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-convert-s
+op converts{!m: int, !n: int}(v: Value): Value := freeValOrTop();
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-reinterpret
+op reinterpret{!t1: int, !t2: int}(v: Value): Value := freeValOrTop();

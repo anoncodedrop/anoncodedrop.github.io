@@ -1,0 +1,71 @@
+sel interval: int*int -> [int];
+sel onlyIf: bool -> [bool];
+
+sel functionIds: unit -> [int];
+sel importedFunctionIds: unit -> [int];
+sel isImportedFunction: int -> [bool];
+sel maxPcForFunctionId: int -> [int];
+sel globalCount: unit -> [int];
+sel pcsForFunctionId: int -> [int];
+sel returnCountForFunctionId: int -> [int];
+sel localCountForFunctionId: int -> [int];
+sel argumentCountForFunctionId: int -> [int];
+sel possibleCallTargets: int*int -> [int*int];
+sel bitwidthForGlobal: int -> [int];
+sel bitwidthForArgument: int * int -> [int];
+sel bitwidthForResult: int * int -> [int];
+sel bitwidthForLocal: int * int -> [int];
+
+sel returnCountForTypeId: int -> [int];
+sel argumentCountForTypeId: int -> [int];
+
+sel pcsAndValueAndTopOfConstsForFunctionId: int -> [int*int*bool];
+sel valueAndTopOfGlobal: int -> [int*bool];
+
+sel stackSizeForFunctionIdAndPc: int * int -> [int];
+sel pcsForFunctionIdAndOpcode: int * int -> [int];
+sel immediateForFunctionIdAndPc: int * int -> [int];
+
+sel unOps: unit -> [int];
+
+sel binOps: unit -> [int];
+sel trappingBinOps: unit -> [int];
+
+sel cvtOps: unit -> [int];
+sel trappingCvtOps: unit -> [int];
+
+sel loadOps: unit -> [int];
+sel storeOps: unit -> [int];
+sel memoryOffsetForFunctionIdAndPc: int * int -> [int];
+
+sel exitPointsForFunctionId: int -> [int];
+
+sel blocksForFunctionId: int -> [int];
+sel loopsForFunctionId: int -> [int];
+sel endsForFunctionId: int -> [int*int];
+sel joinsForFunctionId: int -> [int];
+sel ifs: int -> [int];
+sel elseForIf: int*int -> [int];
+sel endForIf: int*int -> [int];
+
+sel localModifiedInLoopBlock: int*int*int -> [bool];
+sel globalModifiedInLoopBlock: int*int*int -> [bool];
+sel memoryStoreInLoopBlock: int*int -> [bool];
+sel memoryGrowInLoopBlock: int*int -> [bool];
+
+sel breakDestinations: int*int -> [int];
+sel sizeOfBreakTable: int*int -> [int];
+sel breakTableDestinations: int*int*int -> [int];
+sel getAmountOfReturnValuesInBlock: int * int -> [int];
+
+sel isMemoryPresent: unit -> [bool];
+sel isMemoryImported: unit -> [bool];
+sel getMemoryMin: unit -> [int];
+sel getMemoryMax: unit -> [int];
+sel datasegmentsWithPositions: unit -> [int * int];
+sel getHighestDataSegmentIndex: unit -> [int];
+
+sel possibleCallTargetsForType: int -> [int];
+sel initialTableSize: unit -> [int];
+sel initialTableData: int -> [bool*int];
+sel tableImported: unit -> [bool];

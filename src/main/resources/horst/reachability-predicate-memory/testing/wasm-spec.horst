@@ -1,0 +1,75 @@
+sel assertReturnInvocations: unit -> [int];
+sel assertTrapInvocations: unit -> [int];
+sel valueAndTopOfReturn: int*int -> [int*bool];
+
+test testAssertReturnSound expect SAT for
+  (!iid: int)  in assertReturnInvocations(),
+  (!fid: int) in functionIdForInvocation(!iid)
+//  ,(!dmy: bool) in onlyIf(false)
+
+  [?rt: tuple<Value; rs{!fid}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+
+    for (!idx: int) in interval(0,as{!fid}()),
+        (!v: int, !top: bool)  in valueAndTopOfArgument(!iid, !idx):
+        && ?at0[!idx] = val{!top, !v}(),
+
+    for (!idx: int) in interval(0,rs{!fid}()),
+        (!v: int, !top: bool)  in valueAndTopOfReturn(!iid, !idx):
+        && ?rt[!idx] = val{!top, !v}(),
+
+    Return{!fid}(?rt, ?gt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+test testAssertReturnPrecise expect UNSAT for
+  (!iid: int)  in assertReturnInvocations(),
+  (!fid: int)  in functionIdForInvocation(!iid),
+  (!dmy: bool) in possiblyPreciseInvocation(!iid)
+//  ,(!dmy2: bool) in onlyIf(false)
+
+  //TODO investigate this bug
+  //(!dmy: bool) in onlyIf(
+  //  for (!idx: int) in interval(0, as{!fid}()), (!v: int, !top: bool) in valueAndTopOfArgument(!iid, !idx): && ~!top &&
+  //  for (!idx: int) in interval(0, rs{!fid}()), (!v: int, !top: bool) in valueAndTopOfReturn(!iid, !idx): && ~!top
+  //)
+
+  [?rt: tuple<Value; rs{!fid}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+
+    for (!idx: int) in interval(0,as{!fid}()),
+        (!v: int, !top: bool)  in valueAndTopOfArgument(!iid, !idx):
+        && ?at0[!idx] = val{!top, !v}(),
+
+    for (!idx: int) in interval(0,rs{!fid}()),
+        (!v: int, !top: bool)  in valueAndTopOfReturn(!iid, !idx):
+        || ?rt[!idx] != val{!top, !v}(),
+
+    Return{!fid}(?rt, ?gt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+test testAssertTrapSound expect SAT for
+  (!iid: int)  in assertTrapInvocations(),
+  (!fid: int) in functionIdForInvocation(!iid)
+//  ,(!dmy: bool) in onlyIf(false)
+
+  [?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+
+    for (!idx: int) in interval(0,as{!fid}()),
+        (!v: int, !top: bool)  in valueAndTopOfArgument(!iid, !idx):
+        && ?at0[!idx] = val{!top, !v}(),
+
+    Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;
+
+test testAssertTrapPrecise expect UNSAT for
+  (!iid: int)  in assertTrapInvocations(),
+  (!fid: int) in functionIdForInvocation(!iid),
+  (!dmy: bool) in possiblyPreciseInvocation(!iid)
+//  ,(!dmy2: bool) in onlyIf(false)
+
+  [?rt: tuple<Value; rs{!fid}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+
+    for (!idx: int) in interval(0,as{!fid}()),
+        (!v: int, !top: bool)  in valueAndTopOfArgument(!iid, !idx):
+        && ?at0[!idx] = val{!top, !v}(),
+
+    Return{!fid}(?rt, ?gt, ?mem, ?at0, ?gt0, ?mem0)
+  ;

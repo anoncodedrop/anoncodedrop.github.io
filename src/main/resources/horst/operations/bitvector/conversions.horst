@@ -1,0 +1,18 @@
+// The conversions from https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#conversions
+
+external op bvextendu{!m: int, !n: int}(x: BV64): BV64;
+external op bvextends{!m: int, !n: int}(x: BV64): BV64;
+external op bvextract{!m: int, !n: int}(x: BV64): BV64;
+
+op csigned{!bw: int} (i: BV64): BV64 := i;
+
+op cunsigned{!bw: int} (i: BV64): BV64 := i;
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-extend-u
+op cextendu{!m: int, !n: int}(x: BV64): BV64 := bvextendu{!m, !n}(x);
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-extend-s
+op cextends{!m: int, !n: int}(x: BV64): BV64 := bvextends{!m, !n}(x);
+
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#op-wrap
+op cwrap{!m: int, !n: int}(x: BV64): BV64 := bvextract{!m, !n}(x);

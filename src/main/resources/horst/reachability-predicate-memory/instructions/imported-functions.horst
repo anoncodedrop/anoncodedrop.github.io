@@ -1,0 +1,64 @@
+op isInRangeSigned{!sn: bool, !bw: int}(v: Value): bool := match (!sn,v) with
+  | (true, @Val(x)) => !bw >= 64 || (bvsgt{64}(x, cinj{pow{64}(2) - pow{!bw - 1}(2)}()) && bvslt{64}(x, cinj{pow{!bw - 1}(2)}()))
+  | _               => isInRange{!bw}(v)
+  ;
+
+sel touchesMemory:  int -> [bool];
+sel growsMemory:   int -> [bool];
+sel touchesTable:    int -> [bool];
+sel addsFunctions: int -> [bool];
+sel returnValueLowerBound: int*int -> [int];
+sel returnValueUpperBound: int*int -> [int];
+sel touchesGlobal:     int*int -> [bool];
+sel globalLowerBound:  int*int -> [int];
+sel globalUpperBound:  int*int -> [int];
+
+rule importedFunctionRule := for
+  (!fid: int) in importedFunctionIds(),
+  (!tm: bool) in touchesMemory(!fid),
+  (!gm: bool) in growsMemory(!fid),
+  (!tt: bool) in touchesTable(!fid),
+  (!af: bool) in addsFunctions(!fid)
+
+  clause [?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?rt: tuple<Value; rs{!fid}()>, ?rgt: tuple<Value; gs()>
+         ,?nv: Value, ?nsize: Value]
+    MState{!fid, 0}([], ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+    for (!i: int)   in interval(0,rs{!fid}()),
+        (!lb: int)  in returnValueLowerBound(!fid, !i):
+      && iges{64}(?rt[!i], mkConst{!lb}()),
+
+    for (!i: int)   in interval(0,rs{!fid}()),
+        (!lb: int)  in returnValueUpperBound(!fid, !i):
+      && ilts{64}(?rt[!i], mkConst{!lb}()),
+
+    for (!i: int)   in interval(0,rs{!fid}()),
+        (!lb: int)  in returnValueUpperBound(!fid, !i):
+      && ilts{64}(?rt[!i], mkConst{!lb}()),
+
+    for (!i:  int)  in interval(0,gs()),
+        (!tg: bool) in touchesGlobal(!fid, !i):
+      && !tg || ?gt[!i] = ?rgt[!i],
+
+    for (!i: int)   in interval(0,gs()),
+        (!lb: int)  in globalLowerBound(!fid, !i):
+      && iges{64}(?rgt[!i], mkConst{!lb}()),
+
+    for (!i: int)   in interval(0,gs()),
+        (!lb: int)  in globalUpperBound(!fid, !i):
+      && ilts{64}(?rgt[!i], mkConst{!lb}()),
+
+    (!tm) ? (isInRange{8}(?nv)) : (?v = ?nv),
+
+    (!gm) ? (ileu{64}(?size,?nsize) && ileu{64}(?nsize,mkConst{mms()}())) : (?size = ?nsize)
+
+      => Return{!fid}(?rt, ?rgt, @Mem(?i, ?nv, ?nsize), ?at0, ?gt0, ?mem0),
+
+  clause [?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory,
+          ?idx: Value, ?te: MaybeValue, ?tsz: Value]
+    MState{!fid, 0}([], ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0), !tt => Table(?idx, ?te, ?tsz),
+
+  clause [?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, 0}([], ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0), !af => FunctionsAdded(true)
+  ;

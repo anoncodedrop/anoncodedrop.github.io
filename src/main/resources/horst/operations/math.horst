@@ -1,0 +1,6 @@
+op pow{!n: int} (a: int): int := for (!i: int) in interval(0, !n) : * a;
+
+op abs(i: int): int := (i < 0) ? (0 - i) : (i);
+
+op min(a: int, b: int): int := (a < b) ? (a) : (b);
+op max(a: int, b: int): int := (a > b) ? (a) : (b);

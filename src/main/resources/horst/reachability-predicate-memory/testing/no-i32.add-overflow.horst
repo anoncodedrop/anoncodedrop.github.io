@@ -1,0 +1,10 @@
+test testAddOverflowUNSAT expect UNSAT for
+  (!fid: int)  in interval(5,6),
+  (!pc:  int) in pcsForFunctionIdAndOpcode(!fid, I32ADD)
+
+  [?st: tuple<Value; ss{!fid,!pc}() - 2>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory, ?x: Value, ?y: Value , ?r: Value]
+    MState{!fid, !pc}(?x :: ?y :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    ?r = binOp{I32ADD}(?x, ?y),
+    ilts{32}(?x, mkConst{0}()) =  ilts{32}(?y, mkConst{0}()), // overflows only can happen if the two arguments have the same sign
+    ilts{32}(?y, mkConst{0}()) != ilts{32}(?r, mkConst{0}())  // given the former assumption, we have an overflow, if the result does not have the same sign as the arguments
+  ;

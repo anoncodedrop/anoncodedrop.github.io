@@ -1,0 +1,7 @@
+/*
+ * A memory consists of an array of bytes (values in our implementation), and
+ * two Values. The minimal size that the memory should have (in amount of
+ * pages, mandatory) and the maximum amount of pages the storage can grow to
+ * (optional). In our implementation, if it is not defined, we set it to -1.
+ */
+datatype Memory := @Mem<Value * Value * Value>;

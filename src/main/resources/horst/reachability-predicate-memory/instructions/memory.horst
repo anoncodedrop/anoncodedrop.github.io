@@ -1,0 +1,159 @@
+op load{!sz: int}(x: tuple<Value; !sz>): Value :=
+  for (!i : int) in interval(1,!sz): a: Value -> @Val(loadValueAux{!i}(base(a),base(x[!i]))), x[0]
+  ;
+
+rule loadRule := for
+  (!fid: int)     in functionIds(),
+  (!op: int)      in loadOps(),
+  (!pc: int)      in pcsForFunctionIdAndOpcode(!fid, !op),
+  (!offset: int)  in memoryOffsetForFunctionIdAndPc(!fid, !pc)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?vs: tuple<Value; 1>, ?u: Value, ?w: Value
+         ,?mem00: Memory]
+    memOpTbw{!op}() = 8,
+//    iltu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ?size),
+
+    iltu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ishl{64}(?size,mkConst{16}())),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+0}()),?vs[0],?size), ?at0, ?gt0, ?mem00),
+    ?u = load{1}(?vs),
+
+    ?w = (memOpBw{!op}() = memOpTbw{!op}())
+          ? (?u)
+          : ((memLoadSigned{!op}())
+            ? (extends{memOpTbw{!op}(),memOpBw{!op}()}(?u))
+            : (extendu{memOpTbw{!op}(),memOpBw{!op}()}(?u))
+            )
+      => MState{!fid, !pc + 1}(?w :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?vs: tuple<Value; 2>, ?u: Value, ?w: Value
+         ,?mem00: Memory, ?mem01: Memory]
+    memOpTbw{!op}() = 16,
+    //iltu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ?size),
+    iltu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ishl{64}(?size,mkConst{16}())),
+
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+0}()),?vs[0],?size), ?at0, ?gt0, ?mem00),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+1}()),?vs[1],?size), ?at0, ?gt0, ?mem01),
+    ?u = load{2}(?vs),
+
+    ?w = (memOpBw{!op}() = memOpTbw{!op}())
+          ? (?u)
+          : ((memLoadSigned{!op}())
+            ? (extends{memOpTbw{!op}(),memOpBw{!op}()}(?u))
+            : (extendu{memOpTbw{!op}(),memOpBw{!op}()}(?u))
+            )
+      => MState{!fid, !pc + 1}(?w :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?vs: tuple<Value; 4>, ?u: Value, ?w: Value 
+         ,?mem00: Memory, ?mem01: Memory, ?mem02: Memory, ?mem03: Memory]
+    memOpTbw{!op}() = 32,
+    //iltu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ?size),
+    iltu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ishl{64}(?size,mkConst{16}())),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+0}()),?vs[0],?size), ?at0, ?gt0, ?mem00),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+1}()),?vs[1],?size), ?at0, ?gt0, ?mem01),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+2}()),?vs[2],?size), ?at0, ?gt0, ?mem02),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+3}()),?vs[3],?size), ?at0, ?gt0, ?mem03),
+    ?u = load{4}(?vs),
+
+    ?w = (memOpBw{!op}() = memOpTbw{!op}())
+          ? ((!op = F32LOADMEM) ? (freeValOrTop()) : (?u))
+          : ((memLoadSigned{!op}())
+            ? (extends{memOpTbw{!op}(),memOpBw{!op}()}(?u))
+            : (extendu{memOpTbw{!op}(),memOpBw{!op}()}(?u))
+            )
+      => MState{!fid, !pc + 1}(?w :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?vs: tuple<Value; 8>, ?u: Value, ?w: Value 
+         ,?mem00: Memory, ?mem01: Memory, ?mem02: Memory, ?mem03: Memory, ?mem04: Memory, ?mem05: Memory, ?mem06: Memory, ?mem07: Memory]
+    memOpTbw{!op}() = 64,
+    //iltu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ?size),
+    iltu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ishl{64}(?size,mkConst{16}())),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+0}()),?vs[0],?size), ?at0, ?gt0, ?mem00),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+1}()),?vs[1],?size), ?at0, ?gt0, ?mem01),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+2}()),?vs[2],?size), ?at0, ?gt0, ?mem02),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+3}()),?vs[3],?size), ?at0, ?gt0, ?mem03),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+4}()),?vs[4],?size), ?at0, ?gt0, ?mem04),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+5}()),?vs[5],?size), ?at0, ?gt0, ?mem05),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+6}()),?vs[6],?size), ?at0, ?gt0, ?mem06),
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(iadd{64}(?x, mkConst{!offset+7}()),?vs[7],?size), ?at0, ?gt0, ?mem07),
+    ?u = load{8}(?vs),
+
+    ?w = (!op = F64LOADMEM) ? (freeValOrTop()) : (?u)
+
+      => MState{!fid, !pc + 1}(?w :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+    igeu{64}(iadd{64}(?x,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ishl{64}(?size,mkConst{16}()))
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;
+
+rule storeRule := for
+  (!fid: int)     in functionIds(),
+  (!op: int)      in storeOps(),
+  (!pc: int)      in pcsForFunctionIdAndOpcode(!fid, !op),
+  (!offset: int)  in memoryOffsetForFunctionIdAndPc(!fid, !pc)
+
+  clause [?x: Value, ?y: Value, ?st: tuple<Value; ss{!fid,!pc}()-2>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?d: Value, ?u: Value, ?w: Value, ?nv: Value]
+    MState{!fid, !pc}(?x :: ?y :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+//    iltu{64}(iadd{64}(?y,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ?nbytes),
+    iltu{64}(iadd{64}(?y,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ishl{64}(?size,mkConst{16}())),
+    ?d = isub{64}(?i,iadd{64}(?y,mkConst{!offset}())),
+
+    ?u =
+      (memOpBw{!op}() = memOpTbw{!op}())
+      ? ((!op = F32STOREMEM || !op = F64STOREMEM) ? (freeValOrTop()) : (?x))
+      : (wrap{memOpBw{!op}(), memOpTbw{!op}()}(?x)),
+
+    ?w = iand{64}(ilshr{64}(?u, ishl{64}(?d, mkConst{3}())), mkConst{pow{8}(2)-1}()),
+    
+
+    ?nv = (iltu{64}(?d, mkConst{memOpTbw{!op}()/8}())) ? (?w) : (?v)
+
+      => MState{!fid, !pc + 1}(?st, ?gt, ?lt, @Mem(?i, ?nv, ?size), ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?y: Value, ?st: tuple<Value; ss{!fid,!pc}()-2>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?y :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+
+//    igeu{64}(iadd{64}(?y,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ?size)
+    igeu{64}(iadd{64}(?y,mkConst{!offset + memOpTbw{!op}()/8 - 1}()), ishl{64}(?size,mkConst{16}()))
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;
+
+rule sizeRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, MEMORYSIZE)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?size: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory ]
+    MState{!fid, !pc}(?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0)//,
+//    ?size = size(?nbytes)
+    => MState{!fid, !pc + 1}(?size :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0)
+  ;
+
+rule growRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, MEMORYGROW)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?i: Value, ?v: Value, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?size: Value, ?nsize: Value, ?ret: Value]
+
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(?i,?v,?size), ?at0, ?gt0, ?mem0),
+    ?ret = (growOK(base(?x),base(?size),base(mkConst{mms()}()))) ? (?size) : (wrap{64,32}(mkConst{~1}())),
+    ?nsize = grow(?x, ?size, mkConst{mms()}())
+
+    => MState{!fid, !pc + 1}(?ret :: ?st, ?gt, ?lt, @Mem(?i, ?v, ?nsize), ?at0, ?gt0, ?mem0)
+  ;

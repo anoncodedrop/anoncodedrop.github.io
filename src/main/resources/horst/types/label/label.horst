@@ -1,0 +1,3 @@
+// first label is confidentiality, second integrity
+datatype Label := @Lbl<bool * bool>;
+datatype FlowLabel := @Legal | @Illegal;

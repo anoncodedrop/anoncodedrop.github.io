@@ -1,0 +1,11 @@
+test testWriteInSensitiveArrayUNSAT expect UNSAT for
+  (!fid: int)     in interval(5,6),
+  (!op: int)      in storeOps(),
+  (!pc: int)      in pcsForFunctionIdAndOpcode(!fid, !op),
+  (!offset: int)  in memoryOffsetForFunctionIdAndPc(!fid, !pc)
+
+  [?x: Value, ?y: Value, ?st: tuple<Value; ss{!fid,!pc}()-2>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+  MState{!fid, !pc}(?x :: ?y :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+  igeu{32}(mkConst{1024}(), ?y),
+  ileu{32}(?y, mkConst{1038}())
+  ;

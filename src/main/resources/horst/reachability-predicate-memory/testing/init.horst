@@ -1,0 +1,43 @@
+rule invokeRule := for
+  (!fid: int) in startFunctionId(),
+  (!hasMem: bool) in isMemoryPresent(),
+  (!importMem: bool) in isMemoryImported(),
+  (!min: int) in getMemoryMin(),
+  (!max: int) in getMemoryMax()
+
+  clause [?gt: tuple<Value; gs()>, ?at: tuple<Value; as{!fid}()>, ?i: Value, ?v: Value, ?size: Value, ?arr: array<Value>]
+    for (!idx: int) in interval(0,gs()),
+        (!v: int, !top: bool) in valueAndTopOfGlobal(!idx),
+        (!bw: int)  in bitwidthForGlobal(!idx):
+      && ?gt[!idx] = val{!top, !v}()
+      && isInRange{!bw}(?gt[!idx]),
+
+    for (!idx: int) in interval(0,as{!fid}()),
+        (!bw: int)  in bitwidthForArgument(!fid,!idx):
+      && isInRange{!bw}(?at[!idx]),
+
+    isVal(?i),
+    iltu{64}(?i, mkConst{max(1, !max * pow{16}(2))}()),
+    (!importMem)
+    ? (isInRange{8}(?v))
+    : (?v = for (!pos: int, !val: int) in datasegmentsWithPositions(): acc: Value -> (mkConst{!pos}() = ?i) ? (mkConst{!val}()) : (acc), mkConst{0}()), //why was here ?acc
+
+    ?size = mkConst{!min}()
+    => Init{!fid}(?at, ?gt, @Mem(?i,?v,?size)),
+
+  clause [?gt: tuple<Value; gs()>, ?at: tuple<Value; as{!fid}()>, ?mem: Memory]
+    Init{!fid}(?at, ?gt, ?mem)
+      => MState{!fid, 0}([], ?gt, ?at ++ [mkConst{0}(); ls{!fid}() - as{!fid}()], ?mem, ?at, ?gt, ?mem)
+  ;
+
+rule initTableRule := for
+    (!sz:  int) in initialTableSize(),
+    (!idx: int) in interval(0, !sz),
+    (!def: bool, !fid: int) in initialTableData(!idx)
+
+    clause  !def => Table(mkConst{!idx}(), @JustV(mkConst{!fid}()), mkConst{!sz}()),
+    clause ~!def => Table(mkConst{!idx}(), @NothingV, mkConst{!sz}());
+
+rule initImportedTableRule := for
+    (!imp: bool) in tableImported()
+    clause !imp => FunctionsAdded(true);

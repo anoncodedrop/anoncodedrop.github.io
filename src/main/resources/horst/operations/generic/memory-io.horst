@@ -1,0 +1,34 @@
+/* ========================================================================= */
+/* ================================ Store ================================== */
+/* ========================================================================= */
+
+op storeVal{!bytes: int, !offset: int}(mem: array<Value>, pos: Value, x: Value): array<Value> :=
+  for (!i: int) in interval(0, !bytes):
+    acc: array<Value> -> store acc (mkIntOfValue(iadd{64}(pos,mkConst{!offset+!i}()))) (@Val(storeValueAux{!i}(base(x)))), mem
+  ;
+
+op wasmStore{!bw: int, !n: int, !offset: int}(mem: array<Value>, i: Value, x: Value): array<Value> :=
+  storeVal{!n / 8, !offset}(mem, i, (!bw = !n) ? (x) : (wrap{!bw, !n}(x)))
+  ;
+
+/* ========================================================================= */
+/* ================================= Load ================================== */
+/* ========================================================================= */
+
+op loadVal{!bytes: int, !offset: int}(mem: array<Value>, pos: Value): Value :=
+  for (!i: int) in interval(1, !bytes):
+    currVal: Value ->
+        match (currVal, select mem (mkIntOfValue(iadd{64}(pos, mkConst{!offset+!i}())))) with
+            | (@Val(x), @Val(y)) => @Val(loadValueAux{!i}(x,y))
+            | _                  => freeValOrTop()
+    , (select mem mkIntOfValue(iadd{64}(pos, mkConst{!offset}())))
+  ;
+
+op wasmLoad{!bw: int, !n: int, !signed: bool, !offset: int}(mem: array<Value>, i: Value): Value :=
+  (!bw = !n)
+  ? (loadVal{!n / 8, !offset}(mem, i))
+  : ((!signed)
+    ? (extends{!n, !bw}(loadVal{!n / 8, !offset}(mem, i)))
+    : (extendu{!n, !bw}(loadVal{!n / 8, !offset}(mem, i)))
+    )
+  ;

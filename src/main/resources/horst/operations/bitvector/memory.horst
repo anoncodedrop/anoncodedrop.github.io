@@ -1,0 +1,27 @@
+op boundOKAux{!bw: int, !offset: int}(size: BV64, start: BV64): bool :=
+  bvule{64}(bvadd{64}(start, cint2bv{64, !offset + !bw / 8}()), bvmul{64}(size, cint2bv{64,pow{16}(2)}()))
+  ;
+
+op storeValueAux{!i: int}(x: BV64): BV64 :=
+  bvextract{64, 8}(bvlshr{64}(x, cint2bv{64, 8 * !i}()))
+  ;
+
+op loadValueAux{!i: int}(x: BV64, y: BV64): BV64 :=
+  bvor{64}(x, bvshl{64}(y, cint2bv{64,!i * 8}()))
+  ;
+
+op sizeAux(x: BV64): BV64 :=
+  bvlshr{64}(x, cint2bv{64, 16}())
+  ;
+
+op growAdd(p: BV64, size: BV64): BV64 :=
+  bvadd{64}(p, size)
+  ;
+
+//op growOK(p: BV64, size: BV64, max: BV64): bool :=
+//  bvult{64}(p, cint2bv{64,pow{32}(2)}()) && bvule{64}(growAdd(p,size), max)
+//  ;
+
+op growOK(p: BV64, size: BV64, max: BV64): bool :=
+  bvule{64}(p, cint2bv{64,pow{16}(2)}()) && bvule{64}(growAdd(p,size), max)
+  ;

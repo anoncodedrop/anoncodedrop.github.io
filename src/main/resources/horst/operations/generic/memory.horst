@@ -1,0 +1,82 @@
+op boundOK{!bw: int, !offset: int}(size: Value, start: Value): bool :=
+  boundOKAux{!bw, !offset}(base(size), base(start))
+  ;
+
+op grow(pages: Value, size: Value, max: Value): Value := match (pages,size,max) with
+  | (@Val(p), @Val(s), @Val(m)) =>
+    (growOK(p,s,m))
+    ? (@Val(growAdd(p,s)))
+    : (size)
+  | _ => freeValOrTop()
+  ;
+
+op size(nbytes: Value): Value := match nbytes with
+  | @Val(n) => @Val(sizeAux(n))
+  | _       => freeValOrTop()
+  ;
+
+op memOpBw{!op: int}(): int := match !op with
+  | I32LOADMEM    => 32
+  | F32LOADMEM    => 32
+  | I32LOADMEM8S  => 32
+  | I32LOADMEM8U  => 32
+  | I32LOADMEM16U => 32
+  | I32LOADMEM16S => 32
+
+  | I32STOREMEM   => 32
+  | F32STOREMEM   => 32
+  | I32STOREMEM8  => 32
+  | I32STOREMEM16 => 32
+
+  | _             => 64
+  ;
+
+op memOpTbw{!op: int}(): int := match !op with
+  | I32LOADMEM    => 32
+  | I64LOADMEM    => 64
+  | F32LOADMEM    => 32
+  | I32LOADMEM8S  => 8
+  | I32LOADMEM8U  => 8
+  | I32LOADMEM16S => 16
+  | I32LOADMEM16U => 16
+  | I64LOADMEM8S  => 8
+  | I64LOADMEM8U  => 8
+  | I64LOADMEM16S => 16
+  | I64LOADMEM16U => 16
+  | I64LOADMEM32S => 32
+  | I64LOADMEM32U => 32
+
+  | I32STOREMEM   => 32
+  | I64STOREMEM   => 64
+  | F32STOREMEM   => 32
+  | F64STOREMEM   => 64
+  | I32STOREMEM8  => 8
+  | I32STOREMEM16 => 16
+  | I64STOREMEM8  => 8
+  | I64STOREMEM16 => 16
+  | I64STOREMEM32 => 32
+
+  | _             => 64
+  ;
+
+op memLoadSigned{!op: int}(): bool := match !op with
+  | I32LOADMEM8S  => true
+  | I32LOADMEM16S => true
+  | I64LOADMEM8S  => true
+  | I64LOADMEM16S => true
+  | I64LOADMEM32S => true
+
+  | _             => false
+  ;
+
+op memLoad{!op: int, !offset: int}(mem: array<Value>, i: Value): Value := match !op with
+  | F32LOADMEM  => freeValOrTop()
+  | F64LOADMEM  => freeValOrTop()
+  | _           => wasmLoad{memOpBw{!op}(), memOpTbw{!op}(), memLoadSigned{!op}(), !offset}(mem, i)
+  ;
+
+op memStore{!op: int, !offset: int}(mem: array<Value>, i: Value, x: Value): array<Value> := match !op with
+  | F32STOREMEM => wasmStore{memOpBw{!op}(), memOpTbw{!op}(), !offset}(mem, i, freeValOrTop())
+  | F64STOREMEM => wasmStore{memOpBw{!op}(), memOpTbw{!op}(), !offset}(mem, i, freeValOrTop())
+  | _           => wasmStore{memOpBw{!op}(), memOpTbw{!op}(), !offset}(mem, i, x)
+  ;

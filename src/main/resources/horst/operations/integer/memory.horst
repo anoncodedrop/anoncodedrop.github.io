@@ -1,0 +1,21 @@
+const MAXBYTE := 256;
+
+op boundOKAux{!bw: int, !offset: int}(size: int, start: int): bool :=
+  start + !offset + (!bw / 8) <= (size * pow{16}(2))
+  ;
+
+op storeValueAux{!i: int}(x: int): int :=
+    (x / pow{!i}(MAXBYTE)) mod MAXBYTE
+    ;
+
+op loadValueAux{!i: int}(x: int, y: int): int :=
+  x + (y * pow{!i}(MAXBYTE))
+  ;
+
+op growOK(p: int, size: int, max: int, pagesize: int): bool :=
+  (p + size <= pagesize) && (max < 0 || (p + size) <= max)
+  ;
+
+op growAdd(p: int, size: int): int :=
+  size + p
+  ;

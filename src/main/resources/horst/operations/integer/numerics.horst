@@ -1,0 +1,205 @@
+// Parameters and implementation specifics taken from https://webassembly.github.io/spec/core/exec/numerics.html
+// We only cover the numerical instructions defined in the table at 
+// https://webassembly.github.io/spec/core/syntax/instructions.html#numeric-instructions
+
+// Special mod function, since it doesn't coincide between Wasm and Z3
+op wasmMod (num: int, denom: int): int :=
+  (num < 0)
+  ? (0 - (abs(num) mod abs(denom)))
+  : (num mod denom)
+  ;
+
+/* algorithm taken from Python (since Python follows the same
+ * not-always-truncating-towards-zero as Z3):
+ *      (a + (-a % b)) // b
+ * if either a or b is negative, otherwise standard integer division.
+ * https://pretagteam.com/question/truncate-toward-zero-python
+ */
+// https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#aux-trunc
+op trunc (num: int, denom: int): int :=
+  (num < 0 || denom < 0) ? ((num + (wasmMod((0 - num), denom))) / denom) : (num / denom)
+  ;
+
+/* ========================================================================= */
+/* ======================= Integer Binary Operations ======================= */
+/* ========================================================================= */
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iadd
+op ciadd{!bw: int}(x: int, y: int): int := (x + y) mod pow{!bw}(2);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-isub
+op cisub{!bw: int}(x: int, y: int): int := (x - y + pow{!bw}(2)) mod pow{!bw}(2);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-imul
+op cimul{!bw: int}(x: int, y: int): int := (x * y) mod pow{!bw}(2);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-idiv-u
+op cidivu{!bw: int}(i1: int, i2: int): int := trunc(i1,i2);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-idiv-s
+op cidivs{!bw: int}(i1: int, i2: int): int := cunsigned{!bw}(trunc(csigned{!bw}(i1), csigned{!bw}(i2)));
+
+/*
+ * This operator is partial.
+ * As long as both operators are defined, it holds that:
+ *     i1 = i2 * idiv_u(i1, i2) + irem_u(i1, i2)
+ */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irem-u
+op ciremu{!bw: int}(i1: int, i2: int): int := cisub{!bw}(i1, cimul{!bw}(i2, trunc(i1, i2)));
+
+/*
+ * This operator is partial.
+ * As long as both operators are defined, it holds that:
+ *     i1 = i2 * idiv_s(i1, i2) + irem_s(i1, i2)
+ */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irem-s
+
+op ciremsaux{!bw: int}(i1: int, i2: int): int := cisub{!bw}(i1, cimul{!bw}(i2, trunc(i1, i2)));
+op cirems{!bw: int}(i1: int, i2: int): int := cunsigned{!bw}(ciremsaux{!bw}(csigned{!bw}(i1),csigned{!bw}(i2)));
+
+// TODO: We may want to implement https://webassembly.github.io/spec/core/exec/numerics.html#aux-ibits
+// for these operations
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iand
+op ciand{!bw: int}(i1: int, i2: int): int :=
+    for (!n: int) in interval(0, !bw):
+      + pow{!n}(2) * ((i1 / pow{!n}(2)) mod 2) * ((i2 / pow{!n}(2)) mod 2)
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ior
+op cior{!bw: int}(x: int, y: int): int :=
+    for (!n: int) in interval(0, !bw):
+       + pow{!n}(2) * (
+           (
+              ((x / pow{!n}(2)) mod 2) +
+              ((y / pow{!n}(2)) mod 2) +
+              (
+                  ((x / pow{!n}(2)) mod 2) *
+                  ((y / pow{!n}(2)) mod 2)
+              )
+           ) mod 2
+       )
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ixor
+op cixor{!bw: int}(x: int, y: int): int :=
+    for (!n: int) in interval(0, !bw):
+       + pow{!n}(2) * (
+           (
+              ((x / pow{!n}(2)) mod 2) +
+              ((y / pow{!n}(2)) mod 2)
+           ) mod 2
+       )
+    ;
+
+/*
+ * For shifting operations, it seems we cannot use the "s" value below to have
+ * | (@Val(x), @Val(s)) => @Val( (x * pow{s mod !bw}(2)) mod !bw )
+ * due to constsness. Hence, iterate instead. This holds for all shifting
+ * operations.
+ */
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishl
+op cishl{!bw: int}(x: int, s: int): int :=
+    for (!i: int) in interval(0, !bw):
+       + (s mod !bw = !i)
+             ? ( (x * pow{!i}(2)) mod pow{!bw}(2) )
+             : (0)
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishr-u
+op cishru{!bw: int}(x: int, s: int): int :=
+    for (!i: int) in interval(0, !bw):
+       + (s mod !bw = !i)
+             ? ( x / pow{!i}(2) )
+             : (0)
+    ;
+
+op cilshr{!bw: int}(x: int, s: int): int :=
+    for (!i: int) in interval(0, !bw):
+       + (s mod !bw = !i)
+             ? ( x / pow{!i}(2) )
+             : (0)
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishr-s
+op cishrsaux{!bw: int}(x: int, s: int): int :=
+    for (!i: int) in interval(0, !bw):
+       + (s mod !bw = !i)
+             ? ( x / pow{!i}(2) )
+             : (0)
+    ;
+op cishrs{!bw: int}(x: int, y: int): int := cunsigned{!bw}(cishrsaux{!bw}(csigned{!bw}(x),y));
+
+// Rotation operations taken from https://en.wikipedia.org/wiki/Circular_shift#Implementing_circular_shifts
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irotl
+op cirotl{!bw: int}(i1: int, r: int): int := cior{!bw}(cishl{!bw}(i1, r), cishru{!bw}(i1, !bw - r));
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irotr
+op cirotr{!bw: int}(i1: int, r: int): int := cior{!bw}(cishru{!bw}(i1, r), cishl{!bw}(i1, !bw - r));
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ieq
+op cieq{!bw: int}(i1: int, i2: int): bool := i1 = i2;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ine
+op cine{!bw: int}(x: int, y: int): bool := x != y;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ilt-u
+op ciltu{!bw: int}(x: int, y: int): bool := x < y;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ilt-s
+op cilts{!bw: int}(i1: int, i2: int): bool := csigned{!bw}(i1) < csigned{!bw}(i2);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-igt-u
+op cigtu{!bw: int}(i1: int, i2: int): bool := i1 > i2;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-igt-s
+op cigts{!bw: int}(i1: int, i2: int): bool := csigned{!bw}(i1) > csigned{!bw}(i2);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ile-u
+op cileu{!bw: int}(i1: int, i2: int): bool := i1 <= i2;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ile-s
+op ciles{!bw: int}(i1: int, i2: int): bool := csigned{!bw}(i1) <= csigned{!bw}(i2);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ige-u
+op cigeu{!bw: int}(i1: int, i2: int): bool := i1 >= i2;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ige-s
+op ciges{!bw: int}(i1: int, i2: int): bool := csigned{!bw}(i1) >= csigned{!bw}(i2);
+
+/* ========================================================================= */
+/* ================================= Unary ================================= */
+/* ========================================================================= */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iclz
+op ciclz{!bw: int}(x: int): int :=
+    for (!p: int) in interval(0, !bw):
+        acc: int ->
+            (x < pow{!bw - 1 - !p}(2))
+                ? (!p + 1)
+                : (acc)
+        , 0
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ictz
+// returns the index of the least significant '1', - 1.
+op cictz{!bw: int}(x: int): int :=
+    for (!p: int) in interval(0, !bw):
+        res: int ->
+            ((x mod pow{!bw - !p}(2)) != 0)
+                ? (!bw - !p - 1)
+                : (res)
+        , !bw
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ipopcnt
+op cipopcnt{!bw: int}(x: int): int :=
+    for (!p: int) in interval(0, !bw):
+      + ((x / pow{!p}(2)) mod 2 = 1)
+            ? (1)
+            : (0)
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ieqz
+op cieqz{!bw: int}(i: int): bool := i = 0;
+
+op cinot{!bw: int}(x: int): int := x - 1;

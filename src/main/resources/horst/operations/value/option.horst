@@ -1,0 +1,12 @@
+// This file contains helper operators that are not part of the Wasm specification.
+
+// MaybeValue helpers
+op isJustV(mv: MaybeValue): bool := match mv with
+    | @JustV(_) => true
+    | _         => false
+    ;
+
+op fromJustV(mv: MaybeValue): Value := match mv with
+    | @JustV(v) => v
+    | _        => freeValOrTop()
+    ;

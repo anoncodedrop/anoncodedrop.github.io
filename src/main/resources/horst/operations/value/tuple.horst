@@ -1,0 +1,11 @@
+op set{!size: int, !idx: int}(x: Value, xs: tuple<Value; !size>): tuple<Value; !size> :=
+  xs[0:!idx] ++ [x,] ++ xs[min(!idx+1,!size):!size]
+  ;
+
+op drop{!size: int, !from: int, !n: int}(xs: tuple<Value; !size>): tuple<Value; !size - !n> :=
+  xs[:!from] ++ xs[!from + !n:]
+  ;
+
+op reverse{!sz: int}(x: tuple<Value; !sz>): tuple<Value; !sz> :=
+  for (!i : int) in interval(0,!sz): a: tuple<Value; !sz> -> set{!sz, !i}(x[!sz - 1 -!i], a), x
+  ;

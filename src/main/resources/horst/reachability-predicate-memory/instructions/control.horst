@@ -1,0 +1,235 @@
+rule unreachableRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, UNREACHABLE)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;
+
+rule nopRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, NOP)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?lt: tuple<Value; ls{!fid}()>, ?gt: tuple<Value; gs()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc+1}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule blockRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int) in blocksForFunctionId(!fid)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule loopRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int) in loopsForFunctionId(!fid)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule endRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int, !next: int) in endsForFunctionId(!fid)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !next}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule brRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, BR),
+  (!br: int)  in breakDestinations(!fid, !pc),
+  (!n: int)   in getAmountOfReturnValuesInBlock(!fid, !pc)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !br}(drop{ss{!fid,!pc}(), !n, ss{!fid,!pc}()-ss{!fid,!br}()}(?st), ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule brIfRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, BRIF),
+  (!br: int)  in breakDestinations(!fid, !pc),
+  (!n: int)   in getAmountOfReturnValuesInBlock(!fid, !pc)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    absneq(?x, mkConst{0}())
+      => MState{!fid, !br}(drop{ss{!fid,!pc}()-1, !n, ss{!fid,!pc}()-1-ss{!fid,!br}()}(?st), ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    abseq(?x, mkConst{0}())
+      => MState{!fid, !pc + 1}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule brTableRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, BRTABLE),
+  (!sz: int)  in sizeOfBreakTable(!fid, !pc),
+  (!n: int)   in getAmountOfReturnValuesInBlock(!fid, !pc),
+  (!idx: int) in interval(0, !sz - 1), 
+  (!br: int)  in breakTableDestinations(!fid, !pc, !idx)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?nst: tuple<Value; ss{!fid,!br}()>]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    abseq(?x, mkConst{!idx}())
+      => MState{!fid, !br}(drop{ss{!fid,!pc}()-1, !n, ss{!fid,!pc}()-1-ss{!fid,!br}()}(?st), ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule brTableDefaultRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, BRTABLE),
+  (!sz: int)  in sizeOfBreakTable(!fid, !pc),
+  (!n: int)   in getAmountOfReturnValuesInBlock(!fid, !pc),
+  (!br: int)  in breakTableDestinations(!fid, !pc, !sz - 1)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    absge(?x, mkConst{!sz-1}())
+      => MState{!fid, !br}(drop{ss{!fid,!pc}()-1, !n, ss{!fid,!pc}()-1-ss{!fid,!br}()}(?st), ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule ifThenElseRule := for
+  (!fid: int) in functionIds(),
+  //talk about this with Aleksandr
+  //(!pc: int)  in pcsForFunctionIdAndOpcode(!fid, IF),
+  (!pc: int)  in ifs(!fid),
+  (!else: int) in elseForIf(!fid, !pc),
+  (!end: int) in endForIf(!fid, !pc)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    absneq(?x, mkConst{0}())
+      => MState{!fid, !pc + 1}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    abseq(?x, mkConst{0}())
+      => MState{!fid, !else}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+op reverseEq{!sz: int}(xs: tuple<Value; !sz>, ys: tuple<Value; !sz>): bool :=
+    for (!i: int) in interval(0,!sz): && xs[!i] = ys[!sz -!i -1]
+    ;
+
+rule callRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, CALLFUNCTION),
+  (!cid: int) in immediateForFunctionIdAndPc(!fid, !pc)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?at: tuple<Value; as{!cid}()>]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    reverseEq{as{!cid}()}(?st[:as{!cid}()], ?at)
+      => MState{!cid, 0}([], ?gt, ?at ++ [mkConst{0}(); ls{!cid}() - as{!cid}()], ?mem, ?at, ?gt, ?mem),
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?at: tuple<Value; as{!cid}()>,
+         ?rt: tuple<Value; rs{!cid}()>, ?rgt: tuple<Value; gs()>, ?rmem: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    reverseEq{as{!cid}()}(?st[:as{!cid}()], ?at),
+    Return{!cid}(?rt, ?rgt, ?rmem, ?at, ?gt, ?mem)
+      => MState{!fid, !pc + 1}(?rt ++ ?st[as{!cid}():], ?rgt, ?lt, ?rmem, ?at0, ?gt0, ?mem0),
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?at: tuple<Value; as{!cid}()>,
+         ?rt: tuple<Value; rs{!cid}()>, ?rgt: tuple<Value; gs()>, ?rmem: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    reverseEq{as{!cid}()}(?st[:as{!cid}()], ?at),
+    Trap{!cid}(?at, ?gt, ?mem)
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;
+
+rule callIndirectRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, CALLINDIRECT),
+  (!x: int)   in immediateForFunctionIdAndPc(!fid, !pc),
+  (!cid: int) in possibleCallTargetsForType(!x)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?at: tuple<Value; as{!cid}()>, ?ts: Value]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    Table(?x, @JustV(mkConst{!cid}()), ?ts),
+    reverse{as{!cid}()}(?st[:as{!cid}()]) =  ?at
+      => MState{!cid, 0}([], ?gt, ?at ++ [mkConst{0}(); ls{!cid}() - as{!cid}()], ?mem, ?at, ?gt, ?mem),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?at: tuple<Value; as{!cid}()>
+         ,?rfrom: int, ?rgt: tuple<Value; gs()>, ?rt: tuple<Value; rs{!cid}()>, ?rmem: Memory, ?ts: Value]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    Table(?x, @JustV(mkConst{!cid}()), ?ts),
+    Return{!cid}(?rt, ?rgt, ?rmem, ?at, ?gt, ?mem),
+    reverse{as{!cid}()}(?st[:as{!cid}()]) =  ?at
+      => MState{!fid, !pc + 1}(?rt ++ ?st[as{!cid}():], ?rgt, ?lt, ?rmem, ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?at: tuple<Value; as{!cid}()>
+         ,?rfrom: int, ?rgt: tuple<Value; gs()>, ?rt: tuple<Value; rs{!cid}()>, ?rmem: Memory, ?ts: Value]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    Table(?x, @JustV(mkConst{!cid}()), ?ts),
+    Trap{!cid}(?at, ?gt, ?mem),
+    reverse{as{!cid}()}(?st[:as{!cid}()]) =  ?at
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+   ;
+
+rule callIndirectOverapproximatedRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, CALLINDIRECT),
+  (!x: int)   in immediateForFunctionIdAndPc(!fid, !pc),
+  (!rs: int)  in returnCountForTypeId(!x),
+  (!as: int)  in argumentCountForTypeId(!x)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory
+         ,?i: Value, ?v: Value, ?size: Value
+         ,?nv: Value, ?nsize: Value
+         ,?rfrom: int, ?rgt: tuple<Value; gs()>, ?rt: tuple<Value; !rs>]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, @Mem(?i, ?v, ?size), ?at0, ?gt0, ?mem0),
+    FunctionsAdded(true),
+    isInRange{8}(?nv),
+    ileu{64}(?size,?nsize),
+    ileu{64}(?nsize,mkConst{mms()}())
+      => MState{!fid, !pc + 1}(?rt ++ ?st[!as:], ?rgt, ?lt, @Mem(?i, ?nv, ?nsize), ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    FunctionsAdded(true)
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;
+
+rule callIndirectTrapRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, CALLINDIRECT)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory, ?mte: MaybeValue, ?te: Value, ?ts: Value]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    Table(?x, ?mte, ?ts),
+    ?mte = @NothingV || ?mte = @JustV(?te),
+    for (!idx: int, !cid: int) in possibleCallTargets(!fid, !pc): &&
+        absneq(?te, mkConst{!cid}())
+      => Trap{!fid}(?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory, ?mte: MaybeValue, ?ti: Value, ?te: Value, ?ts: Value]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    Table(?ti, ?mte, ?ts),
+    absge(?x, ?ts)
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;
+
+rule functionExitRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in exitPointsForFunctionId(!fid)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?rt: tuple<Value; rs{!fid}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => Return{!fid}(?st[:rs{!fid}()], ?gt, ?mem, ?at0, ?gt0, ?mem0)
+  ;

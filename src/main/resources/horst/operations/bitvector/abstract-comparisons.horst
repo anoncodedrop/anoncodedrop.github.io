@@ -1,0 +1,30 @@
+// abstract relations
+op abseq(a: Value, b: Value): bool := match (a,b) with
+  | (@Val(x), @Val(y)) => x = y
+  | _                  => true
+  ;
+
+op absneq(a: Value, b: Value): bool := match (a,b) with
+  | (@Val(x), @Val(y)) => x != y
+  | _                  => true
+  ;
+
+op absgt(a: Value, b: Value): bool := match (a,b) with
+  | (@Val(x), @Val(y)) => bvugt{32}(x,y)
+  | _                  => true
+  ;
+
+op absge(a: Value, b: Value): bool := match (a,b) with
+  | (@Val(x), @Val(y)) => bvuge{32}(x,y)
+  | _                  => true
+  ;
+
+op abslt(a: Value, b: Value): bool := match (a,b) with
+  | (@Val(x), @Val(y)) => bvult{32}(x,y)
+  | _                  => true
+  ;
+
+op absle(a: Value, b: Value): bool := match (a,b) with
+  | (@Val(x), @Val(y)) => bvule{32}(x,y)
+  | _                  => true
+  ;

@@ -1,0 +1,8 @@
+op pcmax{!fid: int}() : int := for (!pc: int) in maxPcForFunctionId(!fid): + !pc;
+op ss{!fid: int, !pc: int}() : int := for (!ss: int) in stackSizeForFunctionIdAndPc(!fid, !pc): + !ss;
+op ls{!fid: int}() : int := for (!ls: int) in localCountForFunctionId(!fid): + !ls;
+op as{!fid: int}() : int := for (!as: int) in argumentCountForFunctionId(!fid): + !as;
+op rs{!fid: int}() : int := for (!rs: int) in returnCountForFunctionId(!fid): + !rs;
+op gs() : int := for (!gs: int) in globalCount(): + !gs;
+op ds() : int := for (!i: int) in getHighestDataSegmentIndex(): x: int -> !i, 0;
+op mms() : int := for (!max: int) in getMemoryMax(): x : int -> !max, 0;

@@ -1,0 +1,72 @@
+// ===== rules ====== //
+
+rule constRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int, !v: int, !top: bool) in pcsAndValueAndTopOfConstsForFunctionId(!fid)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(val{!top,!v}() :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule unOpRule := for
+  (!fid: int) in functionIds(),
+  (!op: int) in unOps(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, !op)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(unOp{!op}(?x) :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule binOpRule := for
+  (!fid: int) in functionIds(),
+  (!op: int) in binOps(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, !op)
+
+  clause [?x: Value, ?y: Value, ?st: tuple<Value; ss{!fid,!pc}()-2>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?y :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(binOp{!op}(?y, ?x) :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule trappingBinOpRule := for
+  (!fid: int) in functionIds(),
+  (!op: int) in trappingBinOps(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, !op)
+
+  clause [?x: Value, ?y: Value, ?st: tuple<Value; ss{!fid,!pc}()-2>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?res: MaybeValue, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?y :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    ?res = trappingBinOp{!op}(?y, ?x),
+    isJustV(?res)
+      => MState{!fid, !pc + 1}(fromJustV(?res) :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?y: Value, ?st: tuple<Value; ss{!fid,!pc}()-2>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?res: MaybeValue, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?y :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+    ?res = trappingBinOp{!op}(?y, ?x),
+    ~isJustV(?res)
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;
+
+rule cvtOpRule := for
+  (!fid: int) in functionIds(),
+  (!op: int)  in cvtOps(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, !op)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(cvtOp{!op}(?x) :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule trappingCvtOpRule := for
+  (!fid: int) in functionIds(),
+  (!op: int)  in trappingCvtOps(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, !op)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(cvtOp{!op}(?x) :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0),
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => Trap{!fid}(?at0, ?gt0, ?mem0)
+  ;

@@ -1,0 +1,14 @@
+//test testReturn expect SAT for
+//  (!fid: int) in startFunctionId()
+//
+//  [?rt: tuple<Value; rs{!fid}()>, ?gt: tuple<Value; gs()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+//    Return{!fid}(?rt, ?gt, ?mem, ?at0, ?gt0, ?mem0)
+//  ;
+
+test testNE32 expect SAT for
+  (!fid: int) in functionIds(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, I32NE)
+
+  [?x: Value, ?y: Value, ?st: tuple<Value; ss{!fid,!pc}()-2>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?y :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0), ?x != ?y
+  ;

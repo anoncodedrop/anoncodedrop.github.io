@@ -1,0 +1,4 @@
+datatype MaybeValue := @JustV<Value> | @NothingV;
+
+// Maybe type for the entire memory.
+datatype MaybeMemory := @JustM<Memory> | @NothingM;

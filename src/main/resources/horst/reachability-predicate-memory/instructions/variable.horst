@@ -1,0 +1,48 @@
+rule globalGetRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, GLOBALGET),
+  (!idx: int) in immediateForFunctionIdAndPc(!fid, !pc)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(?gt[!idx] :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule globalSetRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int)  in pcsForFunctionIdAndOpcode(!fid, GLOBALSET),
+  (!idx: int) in immediateForFunctionIdAndPc(!fid, !pc)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(?st, set{gs(),!idx}(?x, ?gt), ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule localGetRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, LOCALGET),
+  (!idx: int) in immediateForFunctionIdAndPc(!fid, !pc)
+
+  clause [?st: tuple<Value; ss{!fid,!pc}()>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(?lt[!idx] :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule localSetRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, LOCALSET),
+  (!idx: int) in immediateForFunctionIdAndPc(!fid, !pc)
+
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(?st, ?gt, set{ls{!fid}(),!idx}(?x, ?lt), ?mem, ?at0, ?gt0, ?mem0)
+  ;
+
+rule localTeeRule := for
+  (!fid: int) in functionIds(),
+  (!pc: int) in pcsForFunctionIdAndOpcode(!fid, LOCALTEE),
+  (!idx: int) in immediateForFunctionIdAndPc(!fid, !pc)
+  clause [?x: Value, ?st: tuple<Value; ss{!fid,!pc}()-1>, ?gt: tuple<Value; gs()>, ?lt: tuple<Value; ls{!fid}()>, ?mem: Memory, ?at0: tuple<Value; as{!fid}()>, ?gt0: tuple<Value; gs()>, ?mem0: Memory]
+    MState{!fid, !pc}(?x :: ?st, ?gt, ?lt, ?mem, ?at0, ?gt0, ?mem0)
+      => MState{!fid, !pc + 1}(?x :: ?st, ?gt, set{ls{!fid}(),!idx}(?x, ?lt), ?mem, ?at0, ?gt0, ?mem0)
+  ;

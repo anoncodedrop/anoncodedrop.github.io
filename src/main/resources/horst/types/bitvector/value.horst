@@ -1,0 +1,2 @@
+external datatype BV64;
+datatype Value := @Val<BV64>;

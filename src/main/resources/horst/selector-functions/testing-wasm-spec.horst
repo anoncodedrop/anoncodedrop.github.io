@@ -1,0 +1,6 @@
+sel startFunctionId: unit -> [int];
+sel valueAndTopOfArgument: int*int -> [int*bool];
+sel independentInvocationIds: unit -> [int];
+sel dependentInvocationIds: unit -> [int*int];
+sel functionIdForInvocation: int -> [int];
+sel possiblyPreciseInvocation: int -> [bool];

@@ -1,0 +1,14 @@
+external op freeBaseValue(): BV64;
+
+external op bv2int(v: BV64) : int;
+external op int2bv{!bw: int}(v: int) : BV64;
+external op cint2bv{!bw: int, !v: int}() : BV64;
+
+op base(v: Value): BV64 := match v with
+  | @Val(x) => x
+  | _       => freeBaseValue()
+  ;
+
+op cinj{!i: int}(): BV64 := cint2bv{64,!i}();
+op inj(i: int): BV64 := int2bv{64}(i);
+op proj(i: BV64): int := bv2int(i);

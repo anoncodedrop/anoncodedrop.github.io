@@ -1,0 +1,18 @@
+op mkLConst{!i: int}(): LValue := @LVal(mkConst{!i}(), @Legal);
+op mkLValue(i: int): LValue := @LVal(mkValue(i), @Legal);
+op lval{!top: bool, !v: int}() : LValue := @LVal(val{!top, !v}(), @Legal);
+
+op valueOf(x: LValue): Value := match x with
+  | @LVal(v,_) => v
+  | _          => freeValOrTop() // Should not happen!
+  ;
+
+op labelOf(x: LValue): FlowLabel := match x with
+  | @LVal(_,l) => l
+  | _          => @Illegal // Should not happen!
+  ;
+
+op raiseTo(x: LValue, l: FlowLabel): LValue := @LVal(valueOf(x), flub{2}([l,labelOf(x)]));
+
+//op join(x: LValue, y: LValue, z: LValue): bool := z = @LVal(valueOf(x), (absneq(valueOf(x),valueOf(y))) ? (flub{2}([labelOf(x),labelOf(y)])) : (@Legal));
+op join(x: LValue, y: LValue, z: LValue): bool := z = @LVal(valueOf(x), (flub{2}([labelOf(x),labelOf(y)]) = @Illegal && absneq(valueOf(x),valueOf(y))) ? (@Illegal) : (@Legal));

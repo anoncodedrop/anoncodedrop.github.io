@@ -1,0 +1,4 @@
+op isInRangeAux{!bw: int}(x: BV64): bool :=
+  (!bw >= 64 || bvult{64}(x, cinj{pow{!bw}(2)}()))
+  ;
+

@@ -1,0 +1,18 @@
+op mkCtx{!pc: int}(p: Label, l: FlowLabel): Context :=
+  @Ctx(p, l, (l = @Illegal) ? (!pc) : (~1))
+  ;
+
+op perspectiveOfCtx(ctx: Context): Label := match ctx with
+  | @Ctx(p,_,_) => p
+  | _           => mkBot() // Should not happen!
+  ;
+
+op labelOfCtx(ctx: Context): FlowLabel := match ctx with
+  | @Ctx(_,l,_) => l
+  | _           => @Illegal // Should not happen!
+  ;
+
+op raiseCtxTo{!pc: int}(ctx: Context, l: FlowLabel): Context := match ctx with
+  | @Ctx(p,cl,from) => @Ctx(p, flub{2}([cl,l]), (l = @Legal || cl = @Illegal) ? (from) : (!pc))
+  | _               => ctx // Should not happen!
+  ;

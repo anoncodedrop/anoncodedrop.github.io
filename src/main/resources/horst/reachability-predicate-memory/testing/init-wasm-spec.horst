@@ -1,0 +1,66 @@
+rule invokeIndependentRule := for
+  (!iid: int) in independentInvocationIds(),
+  (!fid: int) in functionIdForInvocation(!iid),
+  (!hasMem: bool) in isMemoryPresent(),
+  (!importMem: bool) in isMemoryImported(),
+  (!min: int) in getMemoryMin(),
+  (!max: int) in getMemoryMax()
+
+  clause [?gt: tuple<Value; gs()>, ?at: tuple<Value; as{!fid}()>, ?i: Value, ?v: Value, ?size: Value, ?arr: array<Value>]
+    for (!idx: int) in interval(0,gs()),
+        (!v: int, !top: bool) in valueAndTopOfGlobal(!idx),
+        (!bw: int)  in bitwidthForGlobal(!idx):
+      && ?gt[!idx] = val{!top, !v}()
+      && isInRange{!bw}(?gt[!idx]),
+
+    for (!idx: int) in interval(0,as{!fid}()),
+        (!v: int, !top: bool)  in valueAndTopOfArgument(!iid,!idx):
+        && ?at[!idx] = val{!top, !v}(),
+
+    isVal(?i),
+    iltu{64}(?i, mkConst{max(1, !max * pow{16}(2))}()),
+    (!importMem)
+    ? (isInRange{8}(?v))
+    : (?v = for (!pos: int, !val: int) in datasegmentsWithPositions(): acc: Value -> (mkConst{!pos}() = ?i) ? (mkConst{!val}()) : (acc), mkConst{0}()), //why was here ?acc
+
+    ?size = mkConst{!min}()
+    => Init{!fid}(?at, ?gt, @Mem(?i,?v,?size)),
+
+  clause [?gt: tuple<Value; gs()>, ?at: tuple<Value; as{!fid}()>, ?mem: Memory]
+    Init{!fid}(?at, ?gt, ?mem)
+      => MState{!fid, 0}([], ?gt, ?at ++ [mkConst{0}(); ls{!fid}() - as{!fid}()], ?mem, ?at, ?gt, ?mem)
+  ;
+
+rule invokeDependentRule := for
+  (!iid1: int, !iid2: int) in dependentInvocationIds(),
+  (!fid1: int) in functionIdForInvocation(!iid1),
+  (!fid2: int) in  functionIdForInvocation(!iid2)
+
+  clause [?gt0: tuple<Value; gs()>, ?at1: tuple<Value; as{!fid1}()>, ?at2: tuple<Value; as{!fid2}()>,
+          ?rt1: tuple<Value; rs{!fid1}()>, ?mem0: Memory, ?mem1: Memory,
+          ?gt1: tuple<Value; gs()>
+         ]
+
+    for (!idx: int) in interval(0,as{!fid1}()),
+        (!v: int, !top: bool)  in valueAndTopOfArgument(!iid1, !idx):
+        && ?at1[!idx] = val{!top, !v}(),
+
+    for (!idx: int) in interval(0,as{!fid2}()),
+        (!v: int, !top: bool)  in valueAndTopOfArgument(!iid2, !idx):
+        && ?at2[!idx] = val{!top, !v}(),
+
+    Return{!fid1}(?rt1, ?gt1, ?mem1, ?at1, ?gt0, ?mem0)
+      => MState{!fid2, 0}([], ?gt1, ?at2 ++ [mkConst{0}(); ls{!fid2}() - as{!fid2}()], ?mem1, ?at2, ?gt1, ?mem1)
+  ;
+
+rule initTableRule := for
+    (!sz:  int) in initialTableSize(),
+    (!idx: int) in interval(0, !sz),
+    (!def: bool, !fid: int) in initialTableData(!idx)
+
+    clause  !def => Table(mkConst{!idx}(), @JustV(mkConst{!fid}()), mkConst{!sz}()),
+    clause ~!def => Table(mkConst{!idx}(), @NothingV, mkConst{!sz}());
+
+rule initImportedTableRule := for
+    (!imp: bool) in tableImported()
+    clause !imp => FunctionsAdded(true);

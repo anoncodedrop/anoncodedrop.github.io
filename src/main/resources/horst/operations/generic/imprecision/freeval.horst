@@ -1,0 +1,1 @@
+op freeValOrTop(): Value := @Val(freeBaseValue());

@@ -1,0 +1,425 @@
+// Parameters and implementation specifics taken from https://webassembly.github.io/spec/core/exec/numerics.html
+// We only cover the numerical instructions defined in the table at 
+// https://webassembly.github.io/spec/core/syntax/instructions.html#numeric-instructions
+
+/* ========================================================================= */
+/* ======================= Integer Binary Operations ======================= */
+/* ========================================================================= */
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iadd
+op iadd{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(ciadd{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-isub
+op isub{!bw: int}(i1: Value, i2: Value): Value := match(i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cisub{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-imul
+op imul{!bw: int}(i1: Value, i2: Value): Value := match(i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cimul{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+op idivuaux{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cidivu{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-idiv-u
+op idivu{!bw: int}(i1: Value, i2: Value): MaybeValue :=
+  (abseq(i2,mkConst{0}())) ? (@NothingV) : (@JustV(idivuaux{!bw}(i1, i2)))
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-idiv-s
+op idivs{!bw: int}(i1: Value, i2: Value): MaybeValue :=
+  (abseq(i2,mkConst{0}()))
+  ? (@NothingV)
+  : (match (i1, i2) with
+    | (@Val(x), @Val(y)) => (x = cinj{pow{!bw - 1}(2)}() && y = cinj{pow{!bw}(2) - 1}())
+                            ? (@NothingV)
+                            : (@JustV(@Val(cidivs{!bw}(x,y))))
+    | _                  => @JustV(freeValOrTop())
+    )
+  ;
+
+/*
+ * This operator is partial.
+ * As long as both operators are defined, it holds that:
+ *     i1 = i2 * idiv_u(i1, i2) + irem_u(i1, i2)
+ */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irem-u
+op iremu{!bw: int}(i1: Value, i2: Value): MaybeValue :=
+  (abseq(i2,mkConst{0}()))
+  ? (@NothingV)
+  : (match (i1, i2) with
+    | (@Val(x), @Val(y)) => @JustV(@Val(ciremu{!bw}(x,y)))
+    | _                  => @JustV(freeValOrTop())
+    )
+  ;
+
+/*
+ * This operator is partial.
+ * As long as both operators are defined, it holds that:
+ *     i1 = i2 * idiv_s(i1, i2) + irem_s(i1, i2)
+ */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irem-s
+op irems{!bw: int}(i1: Value, i2: Value): MaybeValue :=
+  (abseq(i2,mkConst{0}()))
+  ? (@NothingV)
+  : (match (i1, i2) with
+    | (@Val(j1), @Val(j2)) => @JustV(@Val(cirems{!bw}(j1,j2)))
+    | _                    => @JustV(freeValOrTop())
+    )
+  ;
+
+// TODO: We may want to implement https://webassembly.github.io/spec/core/exec/numerics.html#aux-ibits
+// for these operations
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iand
+op iand{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(ciand{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ior
+op ior{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cior{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ixor
+op ixor{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cixor{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+/*
+ * For shifting operations, it seems we cannot use the "s" value below to have
+ * | (@Val(x), @Val(s)) => @Val( (x * pow{s mod !bw}(2)) mod !bw )
+ * due to constsness. Hence, iterate instead. This holds for all shifting
+ * operations.
+ */
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishl
+op ishl{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cishl{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishr-u
+op ishru{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cishru{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+op ilshr{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cilshr{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishr-s
+op ishrs{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cishrs{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// Rotation operations taken from https://en.wikipedia.org/wiki/Circular_shift#Implementing_circular_shifts
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irotl
+op irotl{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cirotl{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irotr
+op irotr{!bw: int}(i1: Value, i2: Value): Value := match (i1, i2) with
+  | (@Val(x), @Val(y)) => @Val(cirotr{!bw}(x,y))
+  | _                  => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ieq
+op ieq{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => cieq{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ine
+op ine{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => cine{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ilt-u
+op iltu{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => ciltu{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ilt-s
+op ilts{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => cilts{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-igt-u
+op igtu{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => cigtu{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-igt-s
+op igts{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => cigts{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ile-u
+op ileu{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => cileu{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ile-s
+op iles{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => ciles{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ige-u
+op igeu{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => cigeu{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ige-s
+op iges{!bw: int}(i1: Value, i2: Value): bool := match (i1, i2) with
+  | (@Val(x), @Val(y)) => ciges{!bw}(x,y)
+  | _                  => freeBool()
+  ;
+
+/* ========================================================================= */
+/* ================================= Unary ================================= */
+/* ========================================================================= */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iclz
+op iclz{!bw: int}(i: Value): Value := match i with
+  | @Val(x) => @Val(ciclz{!bw}(x))
+  | _       => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ictz
+// returns the index of the least significant '1', - 1.
+op ictz{!bw: int}(i: Value): Value := match i with
+  | @Val(x) => @Val(cictz{!bw}(x))
+  | _       => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ipopcnt
+op ipopcnt{!bw: int}(i: Value): Value := match i with
+  | @Val(x) => @Val(cipopcnt{!bw}(x))
+  | _       => freeValOrTop()
+  ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ieqz
+op ieqz{!bw: int}(i: Value): bool := match i with
+  | @Val(x) => cieqz{!bw}(x)
+  | _       => freeBool()
+  ;
+
+op inot{!bw: int}(i1: Value): Value := match(i1) with
+  | @Val(x) => @Val(cinot{!bw}(x))
+  | _       => freeValOrTop()
+  ;
+
+// HoRSt currently doesn't support floats, so we'll just leave all float
+// operations as undefined.
+/* ========================================================================= */
+/* ======================== Float Binary Operations ======================== */
+/* ========================================================================= */
+
+op fadd{!bw: int}(z1: Value, z2: Value): Value := freeValOrTop();
+op fsub{!bw: int}(z1: Value, z2: Value): Value := freeValOrTop();
+op fmul{!bw: int}(z1: Value, z2: Value): Value := freeValOrTop();
+op fdiv{!bw: int}(z1: Value, z2: Value): Value := freeValOrTop();
+
+op fmin{!bw: int}(z1: Value, z2: Value): Value := freeValOrTop();
+op fmax{!bw: int}(z1: Value, z2: Value): Value := freeValOrTop();
+
+op fcopysign{!bw: int}(z1: Value, z2: Value): Value := freeValOrTop();
+
+op feq{!bw: int}(z1: Value, z2: Value): bool := freeBool();
+op fne{!bw: int}(z1: Value, z2: Value): bool := freeBool();
+op flt{!bw: int}(z1: Value, z2: Value): bool := freeBool();
+op fgt{!bw: int}(z1: Value, z2: Value): bool := freeBool();
+op fle{!bw: int}(z1: Value, z2: Value): bool := freeBool();
+op fge{!bw: int}(z1: Value, z2: Value): bool := freeBool();
+
+/* ========================================================================= */
+/* ================================= Unary ================================= */
+/* ========================================================================= */
+
+op fabs{!bw: int}(z: Value): Value := freeValOrTop();
+op fneg{!bw: int}(z: Value): Value := freeValOrTop();
+op fsqrt{!bw: int}(z: Value): Value := freeValOrTop();
+op fceil{!bw: int}(z: Value): Value := freeValOrTop();
+op ffloor{!bw: int}(z: Value): Value := freeValOrTop();
+op ftrunc{!bw: int}(z: Value): Value := freeValOrTop();
+op fnearest{!bw: int}(z: Value): Value := freeValOrTop();
+
+/* ========================================================================= */
+/* ================================ Operations ============================= */
+/* ========================================================================= */
+
+op unOp{!op: int}(a: Value) : Value := match (!op) with
+  | I32EQZ         => (ieqz{32}(a)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32CLZ         => iclz{32}(a)
+  | I32CTZ         => ictz{32}(a)
+  | I32POPCNT      => ipopcnt{32}(a)
+
+  | I64EQZ         => (ieqz{64}(a)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64CLZ         => iclz{64}(a)
+  | I64CTZ         => ictz{64}(a)
+  | I64POPCNT      => ipopcnt{64}(a)
+
+
+  | F32ABS         => fabs{32}(a)
+  | F32NEG         => fneg{32}(a)
+  | F32CEIL        => fceil{32}(a)
+  | F32FLOOR       => ffloor{32}(a)
+  | F32TRUNC       => ftrunc{32}(a)
+  | F32NEAREST     => fnearest{32}(a)
+  | F32SQRT        => fsqrt{32}(a)
+
+  | F64ABS         => fabs{64}(a)
+  | F64NEG         => fneg{64}(a)
+  | F64CEIL        => fceil{64}(a)
+  | F64FLOOR       => ffloor{64}(a)
+  | F64TRUNC       => ftrunc{64}(a)
+  | F64NEAREST     => fnearest{64}(a)
+  | F64SQRT        => fsqrt{64}(a)
+
+  | _              => freeValOrTop()
+  ;
+
+op binOp{!op: int}(a: Value, b: Value) : Value := match (!op) with
+  | I32EQ          => (ieq{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32NE          => (ine{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32LTS         => (ilts{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32LTU         => (iltu{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32GTS         => (igts{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32GTU         => (igtu{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32LES         => (iles{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32LEU         => (ileu{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32GES         => (iges{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I32GEU         => (igeu{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+
+  | I32ADD         => iadd{32}(a,b)
+  | I32SUB         => isub{32}(a,b)
+  | I32MUL         => imul{32}(a,b)
+  | I32AND         => iand{32}(a,b)
+  | I32IOR         => ior{32}(a,b)
+  | I32XOR         => ixor{32}(a,b)
+  | I32SHL         => ishl{32}(a,b)
+  | I32SHRS        => ishrs{32}(a,b)
+  | I32SHRU        => ishru{32}(a,b)
+  | I32ROTL        => irotl{32}(a,b)
+  | I32ROTR        => irotr{32}(a,b)
+
+  | I64EQ          => (ieq{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64NE          => (ine{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64LTS         => (ilts{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64LTU         => (iltu{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64GTS         => (igts{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64GTU         => (igtu{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64LES         => (iles{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64LEU         => (ileu{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64GES         => (iges{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | I64GEU         => (igeu{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+
+  | I64ADD         => iadd{64}(a,b)
+  | I64SUB         => isub{64}(a,b)
+  | I64MUL         => imul{64}(a,b)
+  | I64AND         => iand{64}(a,b)
+  | I64IOR         => ior{64}(a,b)
+  | I64XOR         => ixor{64}(a,b)
+  | I64SHL         => ishl{64}(a,b)
+  | I64SHRS        => ishrs{64}(a,b)
+  | I64SHRU        => ishru{64}(a,b)
+  | I64ROTL        => irotl{64}(a,b)
+  | I64ROTR        => irotr{64}(a,b)
+
+  | F32EQ          => (feq{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F32NE          => (fne{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F32LT          => (flt{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F32GT          => (fgt{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F32LE          => (fle{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F32GE          => (fge{32}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+
+  | F32ADD         => fadd{32}(a,b)
+  | F32SUB         => fsub{32}(a,b)
+  | F32MUL         => fmul{32}(a,b)
+  | F32DIV         => fdiv{32}(a,b)
+  | F32MIN         => fmin{32}(a,b)
+  | F32MAX         => fmax{32}(a,b)
+  | F32COPYSIGN    => fcopysign{32}(a,b)
+
+  | F64EQ          => (feq{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F64NE          => (fne{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F64LT          => (flt{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F64GT          => (fgt{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F64LE          => (fle{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+  | F64GE          => (fge{64}(a,b)) ? (mkConst{1}()) : (mkConst{0}())
+
+  | F64ADD         => fadd{64}(a,b)
+  | F64SUB         => fsub{64}(a,b)
+  | F64MUL         => fmul{64}(a,b)
+  | F64DIV         => fdiv{64}(a,b)
+  | F64MIN         => fmin{64}(a,b)
+  | F64MAX         => fmax{64}(a,b)
+  | F64COPYSIGN    => fcopysign{64}(a,b)
+
+  | _              => freeValOrTop()
+  ;
+
+op trappingBinOp{!op: int}(a: Value, b: Value) : MaybeValue := match (!op) with
+  | I32DIVS        => idivs{32}(a,b)
+  | I32DIVU        => idivu{32}(a,b)
+  | I32REMS        => irems{32}(a,b)
+  | I32REMU        => iremu{32}(a,b)
+
+  | I64DIVS        => idivs{64}(a,b)
+  | I64DIVU        => idivu{64}(a,b)
+  | I64REMS        => irems{64}(a,b)
+  | I64REMU        => iremu{64}(a,b)
+  | _              => @NothingV
+  ;
+
+op cvtOp{!op: int}(a: Value) : Value := match (!op) with
+  | I32WRAPI64        => wrap{32,32}(a)
+  | I32TRUNCSF32      => truncs{32,32}(a)
+  | I32TRUNCUF32      => truncu{32,32}(a)
+  | I32TRUNCSF64      => truncs{32,64}(a)
+  | I32TRUNCUF64      => truncu{32,64}(a)
+  | I64EXTENDI32S     => extends{32,64}(a)
+  | I64EXTENDI32U     => extendu{32,64}(a)
+  | I64TRUNCF32S      => truncs{64,32}(a)
+  | I64TRUNCF32U      => truncu{64,32}(a)
+  | I64TRUNCF64S      => truncs{64,64}(a)
+  | I64TRUNCF64U      => truncu{64,64}(a)
+  | F32CONVERTI32S    => converts{32,32}(a)
+  | F32CONVERTI32U    => convertu{32,32}(a)
+  | F32CONVERTI64S    => converts{32,64}(a)
+  | F32CONVERTI64U    => convertu{32,64}(a)
+  | F32DEMOTEF64      => demote{32,64}(a)
+  | F64CONVERTI32S    => converts{64,32}(a)
+  | F64CONVERTI32U    => convertu{64,32}(a)
+  | F64CONVERTI64S    => converts{64,64}(a)
+  | F64CONVERTI64U    => convertu{64,64}(a)
+  | F64PROMOTEF32     => promote{64,32}(a)
+  | I32REINTERPRETF32 => reinterpret{32, 32}(a)
+  | I64REINTERPRETF64 => reinterpret{64, 64}(a)
+  | F32REINTERPRETI32 => reinterpret{32, 32}(a)
+  | F64REINTERPRETI64 => reinterpret{64, 64}(a)
+  | _                 => freeValOrTop()
+  ;

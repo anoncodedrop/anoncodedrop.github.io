@@ -1,0 +1,11 @@
+external op freeBool(): bool;
+external op freeInt(): int;
+
+op mkConst{!i: int}(): Value := @Val(cinj{!i}());
+op mkValue(i: int): Value := @Val(inj(i));
+op mkIntOfValue(val: Value): int := match val with
+  | @Val(v) => proj(v)
+  | _       => freeInt()
+  ;
+
+op val{!top: bool, !v: int}() : Value := (!top) ? (freeValOrTop()) : (mkConst{!v}());

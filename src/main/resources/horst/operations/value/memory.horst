@@ -1,0 +1,9 @@
+op dataOfMem(memory: Memory): array<Value> := match memory with
+  | @Mem(mem, _) => mem
+  | _            => [freeValOrTop()] // should never happen...
+  ;
+
+op sizeOfMem(memory: Memory): Value := match memory with
+  | @Mem(_, size) => size
+  | _             => freeValOrTop() // should never happen...
+  ;

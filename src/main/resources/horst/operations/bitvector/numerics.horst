@@ -1,0 +1,188 @@
+// Parameters and implementation specifics taken from https://webassembly.github.io/spec/core/exec/numerics.html
+// We only cover the numerical instructions defined in the table at 
+// https://webassembly.github.io/spec/core/syntax/instructions.html#numeric-instructions
+
+external op bvneg{!bw: int}(i1: BV64): BV64;
+
+external op bvadd{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvsub{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvmul{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvudiv{!bw: int}(i1: BV64, i2: BV64): BV64;
+//external op bvsdiv{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvurem{!bw: int}(i1: BV64, i2: BV64): BV64;
+//external op bvsrem{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvand{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvor{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvxor{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvshl{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvlshr{!bw: int}(i1: BV64, i2: BV64): BV64;
+external op bvashr{!bw: int}(i1: BV64, i2: BV64): BV64;
+//external op bvrotl{!bw: int}(i1: BV64, i2: BV64): BV64;
+//external op bvrotr{!bw: int}(i1: BV64, i2: BV64): BV64;
+
+external op bvult{!bw: int}(i1: BV64, i2: BV64): bool;
+external op bvugt{!bw: int}(i1: BV64, i2: BV64): bool;
+external op bvule{!bw: int}(i1: BV64, i2: BV64): bool;
+external op bvuge{!bw: int}(i1: BV64, i2: BV64): bool;
+external op bvslt{!bw: int}(i1: BV64, i2: BV64): bool;
+external op bvsgt{!bw: int}(i1: BV64, i2: BV64): bool;
+external op bvsle{!bw: int}(i1: BV64, i2: BV64): bool;
+external op bvsge{!bw: int}(i1: BV64, i2: BV64): bool;
+
+/* ========================================================================= */
+/* ======================= Integer Binary Operations ======================= */
+/* ========================================================================= */
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iadd
+op ciadd{!bw: int}(x: BV64, y: BV64): BV64 := bvadd{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-isub
+op cisub{!bw: int}(x: BV64, y: BV64): BV64 := bvsub{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-imul
+op cimul{!bw: int}(x: BV64, y: BV64): BV64 := bvmul{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-idiv-s
+op cidivs{!bw: int}(s: BV64, t: BV64): BV64 := match(bvslt{!bw}(s, cint2bv{!bw, 0}()), bvslt{!bw}(t, cint2bv{!bw, 0}())) with
+    | (false, false) =>            bvudiv{!bw}(s,             t)
+    | (true,  false) => bvneg{!bw}(bvudiv{!bw}(bvneg{!bw}(s), t))
+    | (false, true)  => bvneg{!bw}(bvudiv{!bw}(s,             bvneg{!bw}(t)))
+    | _              =>            bvudiv{!bw}(bvneg{!bw}(s), bvneg{!bw}(t))
+    ;
+
+op cidivu{!bw: int}(x: BV64, y: BV64): BV64 := bvudiv{!bw}(x, y);
+
+/*
+ * This operator is partial.
+ * As long as both operators are defined, it holds that:
+ *     i1 = i2 * idiv_u(i1, i2) + irem_u(i1, i2)
+ */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irem-u
+op ciremu{!bw: int}(x: BV64, y: BV64): BV64 := bvurem{!bw}(x, y);
+
+/*
+ * This operator is partial.
+ * As long as both operators are defined, it holds that:
+ *     i1 = i2 * idiv_s(i1, i2) + irem_s(i1, i2)
+ */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irem-s
+
+op cirems{!bw: int}(s: BV64, t: BV64): BV64 := match(bvslt{!bw}(s, cint2bv{!bw, 0}()), bvslt{!bw}(t, cint2bv{!bw, 0}())) with
+    | (false, false) =>            bvurem{!bw}(s,             t)
+    | (true,  false) => bvneg{!bw}(bvurem{!bw}(bvneg{!bw}(s), t))
+    | (false, true)  =>            bvurem{!bw}(s,             bvneg{!bw}(t))
+    | _              => bvneg{!bw}(bvurem{!bw}(bvneg{!bw}(s), bvneg{!bw}(t)))
+    ;
+
+// TODO: We may want to implement https://webassembly.github.io/spec/core/exec/numerics.html#aux-ibits
+// for these operations
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iand
+op ciand{!bw: int}(x: BV64, y: BV64): BV64 := bvand{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ior
+op cior{!bw: int}(x: BV64, y: BV64): BV64 := bvor{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ixor
+op cixor{!bw: int}(x: BV64, y: BV64): BV64 := bvxor{!bw}(x, y);
+
+/*
+ * For shifting operations, it seems we cannot use the "s" value below to have
+ * | (@Val(x), @Val(s)) => @Val( (x * pow{s mod !bw}(2)) mod !bw )
+ * due to constsness. Hence, iterate instead. This holds for all shifting
+ * operations.
+ */
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishl
+op cishl{!bw: int}(x: BV64, s: BV64): BV64 := bvshl{!bw}(x, bvurem{!bw}(s, cint2bv{!bw, !bw}()));
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishr-u
+op cishru{!bw: int}(x: BV64, s: BV64): BV64 := bvlshr{!bw}(x, bvurem{!bw}(s, cint2bv{!bw, !bw}()));
+
+op cilshr{!bw: int}(x: BV64, s: BV64): BV64 := bvlshr{!bw}(x, s);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ishr-s
+op cishrs{!bw: int}(x: BV64, s: BV64): BV64 := bvashr{!bw}(x, bvurem{!bw}(s, cint2bv{!bw, !bw}()));
+
+// Rotation operations taken from https://en.wikipedia.org/wiki/Circular_shift#Implementing_circular_shifts
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irotl
+op cirotl{!bw: int}(x: BV64, r: BV64): BV64 :=
+  bvor{!bw}(
+    bvshl{!bw}(x, bvurem{!bw}(r, cint2bv{!bw, !bw}())),
+    bvlshr{!bw}(x, bvsub{!bw}(cint2bv{!bw, !bw}(), bvurem{!bw}(r, cint2bv{!bw, !bw}())))
+  );
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-irotr
+op cirotr{!bw: int}(x: BV64, r: BV64): BV64 :=
+  bvor{!bw}(
+    bvlshr{!bw}(x, bvurem{!bw}(r, cint2bv{!bw, !bw}())),
+    bvshl{!bw}(x, bvsub{!bw}(cint2bv{!bw, !bw}(), bvurem{!bw}(r, cint2bv{!bw, !bw}())) )
+  );
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ieq
+op cieq{!bw: int}(i1: BV64, i2: BV64): bool := bvextract{64,!bw}(i1) = bvextract{64,!bw}(i2);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ine
+op cine{!bw: int}(x: BV64, y: BV64): bool := bvextract{64,!bw}(x) != bvextract{64,!bw}(y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ilt-u
+op ciltu{!bw: int}(x: BV64, y: BV64): bool := bvult{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ilt-s
+op cilts{!bw: int}(x: BV64, y: BV64): bool := bvslt{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-igt-u
+op cigtu{!bw: int}(x: BV64, y: BV64): bool := bvugt{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-igt-s
+op cigts{!bw: int}(x: BV64, y: BV64): bool := bvsgt{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ile-u
+op cileu{!bw: int}(x: BV64, y: BV64): bool := bvule{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ile-s
+op ciles{!bw: int}(x: BV64, y: BV64): bool := bvsle{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ige-u
+op cigeu{!bw: int}(x: BV64, y: BV64): bool := bvuge{!bw}(x, y);
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ige-s
+op ciges{!bw: int}(x: BV64, y: BV64): bool := bvsge{!bw}(x, y);
+
+/* ========================================================================= */
+/* ================================= Unary ================================= */
+/* ========================================================================= */
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-iclz
+op ciclz{!bw: int}(x: BV64): BV64 :=
+    for (!p: int) in interval(0, !bw):
+        acc: BV64 ->
+            (bvult{!bw}(x, cint2bv{!bw, pow{!bw - 1 - !p}(2)}()))
+                ? (cint2bv{!bw, !p + 1}())
+                : (acc)
+        , cint2bv{!bw, 0}()
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ictz
+// returns the index of the least significant '1', - 1.
+op cictz{!bw: int}(x: BV64): BV64 :=
+    for (!p: int) in interval(0, !bw):
+        res: BV64 ->
+            (bvurem{!bw}(x, cint2bv{!bw, pow{!bw - !p}(2)}()) != cint2bv{!bw, 0}())
+                ? (cint2bv{!bw, !bw - !p - 1}())
+                : (res)
+        , cint2bv{!bw, !bw}()
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ipopcnt
+op cipopcnt{!bw: int}(x: BV64): BV64 :=
+    for (!p: int) in interval(0, !bw):
+        y: BV64 ->
+        bvadd{!bw}((bvand{!bw}(bvlshr{!bw}(x, cint2bv{!bw,!p}()), cint2bv{!bw, 1}()) = cint2bv{!bw, 1}())
+            ? (cint2bv{!bw, 1}())
+            : (cint2bv{!bw, 0}()), y),
+        cint2bv{!bw, 0}()
+    ;
+
+// https://webassembly.github.io/spec/core/exec/numerics.html#op-ieqz
+op cieqz{!bw: int}(x: BV64): bool := x = cint2bv{64, 0}();
+
+op cinot{!bw: int}(x: BV64): BV64 := bvsub{64}(bvneg{64}(x), cint2bv{64,1}());

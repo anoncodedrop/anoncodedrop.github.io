@@ -1,0 +1,9 @@
+op isVal(v: Value): bool := match v with
+  | @Val(x) => true
+  | _       => false
+  ;
+
+op isInRange{!bw: int}(v: Value): bool := match v with
+  | @Val(x) => isInRangeAux{!bw}(x)
+  | _       => false
+  ;

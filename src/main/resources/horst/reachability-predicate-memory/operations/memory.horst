@@ -1,0 +1,14 @@
+op indexOfMem(memory: Memory): Value := match memory with
+  | @Mem(i, _, _) => i
+  | _             => freeValOrTop() // should never happen...
+  ;
+
+op valueOfMem(memory: Memory): Value := match memory with
+  | @Mem(_, v, _) => v
+  | _             => freeValOrTop() // should never happen...
+  ;
+
+op byteCountOfMem(memory: Memory): Value := match memory with
+  | @Mem(_, _, n) => n
+  | _             => freeValOrTop() // should never happen...
+  ;
